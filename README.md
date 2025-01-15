@@ -3,7 +3,7 @@ This is a simple Circuitpython library to use Waveshare 2.13 inch ePaper display
 This is a just simple conversion from Waveshare Micropython code to work with Circuitpython.
 
 More information about the ePaper module this works with:
-* Waveshare 2.13inch E-Paper E-Ink Display Module (B) for Raspberry Pi Pico https://www.waveshare.com/pico-epaper-2.13-b.htm
+* Waveshare 2.13inch E-Paper E-Ink Display Module (B) V4 for Raspberry Pi Pico https://www.waveshare.com/pico-epaper-2.13-b.htm
 * Waveshare 2.13inch E-Paper wiki https://www.waveshare.com/wiki/Pico-ePaper-2.13-B
 * Display module specification sheet https://www.waveshare.com/w/upload/d/d8/2.13inch_e-Paper_%28B%29_V3_Specification.pdf
 * Waveshare ePaper github pages https://github.com/waveshare/Pico_ePaper_Code
@@ -35,55 +35,39 @@ https://docs.circuitpython.org/projects/framebuf/en/latest/ and https://github.c
 ```python
 
 
-from epd_2in13_b import EPD_2in13_B
+from epd_2in13_b import EPD_2in13_B_V4
 
 try:
     #initialise class with rotation:  rotation = 0 portrait, 1= landscape, 
     # 2 portrait upside down, 3= landscape upside down
-    epd = EPD_2in13_B(1)
-    #clear class
-    epd.Clear(0x00, 0x00)
+    epd = EPD_2in13_B_V4(1)
+    # clear class
+    epd.Clear(0xff, 0xff)
+    
     # Clear black framebuffer
-    epd.framebuffer_black.fill(0x00)
+    epd.framebuffer_black.fill(0xff)
     # Clear red framebuffer
-    epd.framebuffer_red.fill(0x00)
-    # Write text to black framebuffer
-    epd.framebuffer_black.text('Black text in 0,0 position.', 0, 0, 0xff)
-    # Write text red framebuffer
-    epd.framebuffer_red.text('Red text', 20, 20, 0xff)
-    # Draw red circle on coordinate 50,50 with 20 radius
-    epd.framebuffer_red.circle(45, 50, 20, 0xff)
-    # Draw everything to display, this will take around 15 sec per layer
-    epd.display()
-    # put the display on the sleep mode
-    epd.sleep();
-
-except KeyboardInterrupt:
-    print ("exception")
-```
-
-Another example with rotated red frame buffer layer
-```python
-from epd_2in13_b import EPD_2in13_B
-
-try:
-    #initialise class with rotation:  rotation = 0 portrait, 1= landscape, 
-    # 2 portrait upside down, 3= landscape upside down
-    epd = EPD_2in13_B(1)
-    #clear class
-    epd.Clear(0x00, 0x00)
-    # Clear black framebuffer
-    epd.framebuffer_black.fill(0x00)
-    # Clear red framebuffer
-    epd.framebuffer_red.fill(0x00)
-    # Write text to black framebuffer
-    epd.framebuffer_black.text('Black text in 0,0 position.', 0, 0, 0xff)
-    # Write text red framebuffer
-
-    # Change red framebuffer rotation to upside down
-    epd.framebuffer_red.rotation = 3
-    # draw text now upside down..
-    epd.framebuffer_red.text('red text in 0,0 position.', 0, 8, 0xff)
+    epd.framebuffer_red.fill(0xff)
+    
+    # Write some text
+    epd.framebuffer_black.text("Waveshare", 0, 10, 0x00)
+    epd.framebuffer_red.text("ePaper-2.13B_V4", 0, 20, 0x00)
+    epd.framebuffer_black.text("Raspberry Pico W", 0, 30, 0x00)
+    epd.framebuffer_red.text("Hello World", 0, 40, 0x00)
+    
+    # Draw some lines
+    epd.framebuffer_red.vline(5, 55, 60, 0x00)
+    epd.framebuffer_red.vline(100, 55, 60, 0x00)
+    epd.framebuffer_black.hline(5, 55, 95, 0x00)
+    epd.framebuffer_black.hline(5, 115, 95, 0x00)
+    epd.framebuffer_red.line(5, 55, 100, 115, 0x00)
+    epd.framebuffer_black.line(100, 55, 5, 115, 0x00)
+    
+    # Draw rectangles and circles
+    epd.framebuffer_black.fill_rect(130, 10, 40, 40, 0x00)
+    epd.framebuffer_red.fill_rect(190, 10, 40, 40, 0x00)
+    epd.framebuffer_red.circle(150, 90, 20, 0x00)
+    epd.framebuffer_black.circle(210, 90, 20, 0x00)
 
     # Draw everything to display, this will take around 15 sec per layer
     epd.display()
@@ -93,7 +77,4 @@ try:
 except KeyboardInterrupt:
     print ("exception")
 ```
-
-
-
 

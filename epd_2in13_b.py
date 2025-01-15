@@ -6,7 +6,7 @@
 `epd_2in13_b`
 ================================================================================
 
-Circuitpython library to use Waveshare 2.13 inch ePaper display with Raspberry Pico W
+Circuitpython library to use Waveshare 2.13B V4 inch ePaper display with Raspberry Pico W
 
 
 * Author(s): Waveshare team, Mikko Pitkänen
@@ -38,7 +38,7 @@ This is a Circuitpython version of Waveshare 2.13" epaper display lib for Raspbe
 # imports
 
 __version__ = "0.0.1+auto.0"
-__repo__ = "https://github.com/tomduud/CircuitPython_EPD_2in13_B.git"
+__repo__ = "https://github.com/e-marco/CircuitPython_EPD_2in13_B_V4.git"
 
 import time
 
@@ -54,10 +54,10 @@ DC_PIN          = board.GP8
 CS_PIN          = board.GP9 
 BUSY_PIN        = board.GP13 
 
-EPD_WIDTH       = 104
-EPD_HEIGHT      = 212
+EPD_WIDTH       = 122
+EPD_HEIGHT      = 250
 
-class EPD_2in13_B:
+class EPD_2in13_B_V4:
     def __init__(self, rotation):
         # create the spi device and pins we will need
         self.spi = busio.SPI(clock=board.GP10, MOSI=board.GP11)
@@ -68,8 +68,16 @@ class EPD_2in13_B:
         self.dc.direction = digitalio.Direction.OUTPUT
         self.rst = digitalio.DigitalInOut(RST_PIN)
         self.rst.direction = digitalio.Direction.OUTPUT
+        
         self.busy = digitalio.DigitalInOut(BUSY_PIN)
-        self.width = EPD_WIDTH
+        self.busy.direction = digitalio.Direction.INPUT
+        self.busy.pull = digitalio.Pull.UP
+
+        if EPD_WIDTH % 8 == 0:
+            self.width = EPD_WIDTH
+        else :
+            self.width = (EPD_WIDTH // 8) * 8 + 8
+
         self.height = EPD_HEIGHT
 
         self.framebuffer_black_array = bytearray(self.height * self.width // 8)
@@ -84,20 +92,32 @@ class EPD_2in13_B:
 
     def init(self):
         self.reset()
-        self.send_command(0x04)
         self.ReadBusy()  # waiting for the electronic paper IC to release the idle signal
+        self.send_command(0x12)  #SWRESET
+        self.ReadBusy()   
 
-        self.send_command(0x00)  # panel setting
-        self.send_data(0x0f)  # LUT from OTP,128x296
-        self.send_data(0x89)  # Temperature sensor, boost and other related timing settings
+        self.send_command(0x01) #Driver output control      
+        self.send_data(0xf9)
+        self.send_data(0x00)
+        self.send_data(0x00)
 
-        self.send_command(0x61)  # resolution setting
-        self.send_data(0x68) # resolution setting
-        self.send_data(0x00) # resolution setting
-        self.send_data(0xD4) # resolution setting
+        self.send_command(0x11) #data entry mode       
+        self.send_data(0x03)
+        
+        self.SetWindows(0, 0, self.width-1, self.height-1)
+        self.SetCursor(0, 0)
 
-        self.send_command(0x50)  # VCOM AND DATA INTERVAL SETTING
-        self.send_data(0x87) # data Inteval
+	self.send_command(0x3C) #BorderWaveform
+        self.send_data(0x05)
+
+        self.send_command(0x18) #Read built-in temperature sensor
+        self.send_data(0x80)
+
+        self.send_command(0x21) #  Display update control
+        self.send_data(0x80)
+        self.send_data(0x80)
+
+        self.ReadBusy()
 
         print('Display initialized')
 
@@ -123,6 +143,10 @@ class EPD_2in13_B:
 
     def digital_read(self, pin):
         return pin.value
+        
+   	
+    def module_exit(self):
+        self.digital_write(self.rst, False)
 
     def delay_ms(self, delaytime):
         time.sleep(delaytime / 1000.0)
@@ -131,7 +155,7 @@ class EPD_2in13_B:
         while not self.spi.try_lock():
             pass
         try:
-            self.spi.configure(baudrate=40000000, phase=0, polarity=0)
+            self.spi.configure(baudrate=4000000, phase=0, polarity=0)
             self.cs.value = False
             self.spi.write(bytearray(data))
             self.cs.value = True
@@ -141,7 +165,8 @@ class EPD_2in13_B:
     def ReadBusy(self):
         print('Display busy')
         self.send_command(0x71)
-        while (self.digital_read(self.busy) == 0):
+        
+        while (self.digital_read(self.busy)):
             self.send_command(0x71)
             self.delay_ms(10)
         print('Display free')
@@ -153,11 +178,11 @@ class EPD_2in13_B:
         self.digital_write(self.cs, True)
 
     def Clear(self, colorblack, colorred):
-        self.send_command(0x10)
+        self.send_command(0x24)
         for j in range(0, self.height):
             for i in range(0, int(self.width / 8)):
                 self.send_data(colorblack)
-        self.send_command(0x13)
+        self.send_command(0x26)
         for j in range(0, self.height):
             for i in range(0, int(self.width / 8)):
                 self.send_data(colorred)
@@ -165,26 +190,45 @@ class EPD_2in13_B:
         self.TurnOnDisplay()
 
     def TurnOnDisplay(self):
-        self.send_command(0x12)
+        self.send_command(0x20)
         self.ReadBusy()
+        
+    def SetWindows(self, Xstart, Ystart, Xend, Yend):
+        self.send_command(0x44) # SET_RAM_X_ADDRESS_START_END_POSITION
+        self.send_data((Xstart>>3) & 0xFF)
+        self.send_data((Xend>>3) & 0xFF)
+
+        self.send_command(0x45) # SET_RAM_Y_ADDRESS_START_END_POSITION
+        self.send_data(Ystart & 0xFF)
+        self.send_data((Ystart >> 8) & 0xFF)
+        self.send_data(Yend & 0xFF)
+        self.send_data((Yend >> 8) & 0xFF)
+        
+    def SetCursor(self, Xstart, Ystart):
+        self.send_command(0x4E) # SET_RAM_X_ADDRESS_COUNTER
+        self.send_data(Xstart & 0xFF)
+
+        self.send_command(0x4F) # SET_RAM_Y_ADDRESS_COUNTER
+        self.send_data(Ystart & 0xFF)
+        self.send_data((Ystart >> 8) & 0xFF)
 
     def sleep(self):
-        self.send_command(0X50)
-        self.send_data(0xf7)
-        self.send_command(0X02)
-        self.ReadBusy()
-        self.send_command(0x07)  # DEEP_SLEEP
-        self.send_data(0xA5)  #TODO check this code
+        self.send_command(0x10) 
+        self.send_data(0x01)
+        
         self.delay_ms(2000)
+        self.module_exit()
 
     def display(self):
-        self.send_command(0x10)
+        self.send_command(0x24)
         for j in range(0, self.height):
             for i in range(0, int(self.width / 8)):
                 self.send_data(self.framebuffer_black_array[i + j * int(self.width / 8)])
-        self.send_command(0x13)
+
+        self.send_command(0x26)
         for j in range(0, self.height):
             for i in range(0, int(self.width / 8)):
                 self.send_data(self.framebuffer_red_array[i + j * int(self.width / 8)])
+
         self.TurnOnDisplay()
 
